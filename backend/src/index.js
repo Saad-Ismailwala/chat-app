@@ -19,7 +19,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173", // ✅ Works in local & Render
+    origin: process.env.CLIENT_URL || "http://localhost:5173", // Local + Render
     credentials: true,
   })
 );
@@ -33,14 +33,14 @@ if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/dist");
   app.use(express.static(frontendPath));
 
-  // ✅ FIXED: Express 5 requires "/*" instead of "*"
-  app.get("/*", (req, res) => {
+  // ✅ Fix for Express 5: must use (.*) instead of *
+  app.get("/{*any}", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`✅ Server is running on port: ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
   connectDB();
 });
