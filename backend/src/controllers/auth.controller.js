@@ -95,13 +95,26 @@ export const updateProfile = async (req, res) => {
     // Build an update object dynamically
     const updateData = {};
 
-    if (fullName) {
-      updateData.fullName = fullName;
-    }
+    if (fullName) updateData.fullName = fullName;
 
     if (profilePic) {
-      const uploadResponse = await cloudinary.uploader.upload(profilePic);
-      updateData.profilePic = uploadResponse.secure_url;
+      let imageUrl;
+      try {
+        // Only upload if it's a base64 string
+        if (profilePic.startsWith("data:image")) {
+          const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+            folder: "profile_pics", // optional: organize your images
+          });
+          imageUrl = uploadResponse.secure_url;
+        } else {
+          // if frontend sends a direct URL, just use it
+          imageUrl = profilePic;
+        }
+        updateData.profilePic = imageUrl;
+      } catch (cloudErr) {
+        console.error("Cloudinary upload error:", cloudErr.message);
+        return res.status(400).json({ message: "Invalid image format" });
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -110,11 +123,11 @@ export const updateProfile = async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
       new: true,
-    });
+    }).select("-password"); // hide password in response
 
     res.status(200).json(updatedUser);
   } catch (error) {
-    console.log("Error in update profile:", error);
+    console.error("Error in update profile:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 };
