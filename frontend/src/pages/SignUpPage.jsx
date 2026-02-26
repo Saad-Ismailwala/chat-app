@@ -193,10 +193,7 @@ const SignUpPage = () => {
       {/* Right side: Image */}
       <div className="lg:w-1/2 w-full hidden lg:flex items-center justify-center bg-base-200">
         <div className="w-full max-w-lg px-4">
-          <AuthImagePattern
-            title="Join our community"
-            subtitle="Connect with friends, share moments, and stay in touch with your loved ones."
-          />
+          <AuthImagePattern subtitle="Connect with friends, share moments, and stay in touch with your loved ones." />
         </div>
       </div>
     </div>
