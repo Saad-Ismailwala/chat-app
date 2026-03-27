@@ -5,19 +5,23 @@ import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users } from "lucide-react";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading } =
-    useChatStore();
+  const {
+    getUsers,
+    users,
+    selectedUser,
+    setSelectedUser,
+    isUsersLoading,
+    unreadCounts,
+  } = useChatStore();
 
   const { onlineUsers, authUser } = useAuthStore();
+
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
     getUsers();
   }, [getUsers]);
 
-  // Filters:
-  // 1. Exclude the currently authenticated user (authUser) from the list.
-  // 2. Apply the 'showOnlineOnly' filter if enabled.
   const filteredUsers = users
     .filter((user) => user._id !== authUser?._id)
     .filter((user) => (showOnlineOnly ? onlineUsers.includes(user._id) : true));
@@ -25,13 +29,14 @@ const Sidebar = () => {
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
+    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col">
       <div className="border-b border-base-300 w-full p-5">
         <div className="flex items-center gap-2">
           <Users className="size-6" />
           <span className="font-medium hidden lg:block">Contacts</span>
         </div>
-        {/* Online filter toggle */}
+
+        {/* toggle restored */}
         <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
             <input
@@ -42,12 +47,9 @@ const Sidebar = () => {
             />
             <span className="text-sm">Show online only</span>
           </label>
+
           <span className="text-xs text-zinc-500">
-            {/* Improved calculation for online users: subtract 1 only if authUser exists and is online */}
-            (
-            {onlineUsers.length -
-              (authUser && onlineUsers.includes(authUser._id) ? 1 : 0)}{" "}
-            online)
+            ({onlineUsers.length - (authUser ? 1 : 0)} online)
           </span>
         </div>
       </div>
@@ -57,34 +59,30 @@ const Sidebar = () => {
           <button
             key={user._id}
             onClick={() => setSelectedUser(user)}
-            className={`
-              w-full p-3 flex items-center gap-3
-              hover:bg-base-300 transition-colors
-              ${
-                selectedUser?._id === user._id
-                  ? "bg-base-300 ring-1 ring-base-300"
-                  : ""
-              }
-            `}
+            className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 ${
+              selectedUser?._id === user._id ? "bg-base-300" : ""
+            }`}
           >
-            <div className="relative mx-auto lg:mx-0">
+            <div className="relative">
               <img
                 src={user.profilePic || "/avatar.png"}
-                alt={user.fullName || user.username || "User avatar"}
-                className="size-12 object-cover rounded-full"
+                className="size-12 rounded-full"
               />
+
               {onlineUsers.includes(user._id) && (
-                <span
-                  className="absolute bottom-0 right-0 size-3 bg-green-500
-                  rounded-full ring-2 ring-base-100"
-                />
+                <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-100" />
               )}
+
+              {unreadCounts?.[user._id] > 0 &&
+                selectedUser?._id !== user._id && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center shadow">
+                    {unreadCounts[user._id]}
+                  </span>
+                )}
             </div>
 
-            <div className="hidden lg:block text-left min-w-0">
-              <div className="font-medium truncate">
-                {user.fullName || user.username}
-              </div>
+            <div className="hidden lg:block text-left">
+              <div className="font-medium">{user.fullName}</div>
               <div className="text-sm text-base-content/70">
                 {onlineUsers.includes(user._id) ? "Online" : "Offline"}
               </div>
@@ -92,14 +90,14 @@ const Sidebar = () => {
           </button>
         ))}
 
-        {/* Display message if no users are found after filtering */}
         {filteredUsers.length === 0 && (
           <div className="text-center text-base-content/70 py-4">
-            {showOnlineOnly ? "No online contacts found" : "No contacts found"}
+            No users found
           </div>
         )}
       </div>
     </aside>
   );
 };
+
 export default Sidebar;

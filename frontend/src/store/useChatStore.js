@@ -7,6 +7,8 @@ export const useChatStore = create((set, get) => ({
   messages: [],
   users: [],
   selectedUser: null,
+  unreadCounts: {},
+
   isUsersLoading: false,
   isMessagesLoading: false,
 
@@ -28,8 +30,10 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch messages");
-      set({ messages: [] });
+      set({
+        messages: [],
+        error: error.response?.data?.message || "Failed to fetch messages",
+      });
     } finally {
       set({ isMessagesLoading: false });
     }
@@ -37,51 +41,117 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
-    if (!selectedUser) {
-      toast.error("No user selected to send message to.");
-      return;
-    }
     try {
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`,
-        messageData
+        messageData,
       );
       set({ messages: [...messages, res.data] });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send message");
+      toast.error("Failed to send message", error);
     }
   },
 
+  deleteMessage: async (messageId) => {
+    try {
+      const res = await axiosInstance.delete(`/messages/${messageId}`);
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? res.data : m,
+        ),
+      }));
+    } catch (error) {
+      toast.error("Could not delete message", error);
+    }
+  },
+
+  editMessage: async (messageId, text) => {
+    try {
+      const res = await axiosInstance.put(`/messages/${messageId}`, { text });
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? res.data : m,
+        ),
+      }));
+    } catch (error) {
+      toast.error("Could not edit message", error);
+    }
+  },
+
+  markMessagesAsRead: async (senderId) => {
+    try {
+      await axiosInstance.put(`/messages/read/${senderId}`);
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m.senderId === senderId ? { ...m, isRead: true } : m,
+        ),
+      }));
+    } catch (error) {
+      console.log("Read receipt error", error);
+    }
+  },
+
+  clearUnread: (userId) =>
+    set((state) => ({
+      unreadCounts: { ...state.unreadCounts, [userId]: 0 },
+    })),
+
   subscribeToMessages: () => {
     const { selectedUser } = get();
-    if (!selectedUser) {
-      console.warn(
-        "subscribeToMessages: No selected user, skipping subscription."
-      );
-      return;
-    }
-
     const { socket } = useAuthStore.getState();
-    if (!socket) {
-      console.error("Socket is not initialized in useAuthStore.");
-      toast.error("Chat connection error. Please refresh.");
-      return;
-    }
+    if (!socket) return;
+
+    socket.off("newMessage");
+    socket.off("messageDeleted");
+    socket.off("messageEdited");
+    socket.off("messagesRead");
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageForSelectedChat =
-        (newMessage.senderId === selectedUser._id &&
-          newMessage.receiverId === useAuthStore.getState().authUser?._id) ||
-        (newMessage.receiverId === selectedUser._id &&
-          newMessage.senderId === useAuthStore.getState().authUser?._id);
+      const currentSelected = get().selectedUser;
+      const { authUser } = useAuthStore.getState();
 
-      const isDuplicate = get().messages.some(
-        (msg) => msg._id === newMessage._id
-      );
+      // if message is from me -> ignore
+      if (newMessage.senderId === authUser._id) return;
 
-      if (isMessageForSelectedChat && !isDuplicate) {
+      // if chat open -> push message
+      if (currentSelected && newMessage.senderId === currentSelected._id) {
         set((state) => ({
           messages: [...state.messages, newMessage],
+        }));
+
+        get().markMessagesAsRead(currentSelected._id);
+      } else {
+        // 🔴 increase unread counter
+        set((state) => ({
+          unreadCounts: {
+            ...state.unreadCounts,
+            [newMessage.senderId]:
+              (state.unreadCounts[newMessage.senderId] || 0) + 1,
+          },
+        }));
+      }
+    });
+
+    socket.on("messageDeleted", (deletedMsg) => {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === deletedMsg._id ? deletedMsg : m,
+        ),
+      }));
+    });
+
+    socket.on("messageEdited", (editedMsg) => {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === editedMsg._id ? editedMsg : m,
+        ),
+      }));
+    });
+
+    socket.on("messagesRead", ({ readerId }) => {
+      if (readerId === selectedUser?._id) {
+        set((state) => ({
+          messages: state.messages.map((m) => ({ ...m, isRead: true })),
         }));
       }
     });
@@ -91,8 +161,14 @@ export const useChatStore = create((set, get) => ({
     const { socket } = useAuthStore.getState();
     if (socket) {
       socket.off("newMessage");
+      socket.off("messageDeleted");
+      socket.off("messageEdited");
+      socket.off("messagesRead");
     }
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  setSelectedUser: (selectedUser) => {
+    set({ selectedUser });
+    if (selectedUser) get().clearUnread(selectedUser._id);
+  },
 }));

@@ -18,8 +18,21 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    // --- NEW FIELDS FOR ENHANCEMENTS ---
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    isRead: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Message = mongoose.model("Message", messageSchema);

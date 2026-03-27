@@ -4,7 +4,19 @@ import { useChatStore } from "../store/useChatStore";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { onlineUsers, lastSeen } = useAuthStore();
+
+  const isOnline = onlineUsers.includes(selectedUser?._id);
+
+  const lastSeenText = lastSeen[selectedUser?._id]
+    ? `Last seen today at ${new Date(
+        lastSeen[selectedUser._id],
+      ).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })}`
+    : "Offline";
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -24,12 +36,11 @@ const ChatHeader = () => {
           <div>
             <h3 className="font-medium">{selectedUser.fullName}</h3>
             <p className="text-sm text-base-content/70">
-              {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+              {isOnline ? "Online" : lastSeenText}
             </p>
           </div>
         </div>
 
-        {/* Close button */}
         <button onClick={() => setSelectedUser(null)}>
           <X />
         </button>
@@ -37,4 +48,5 @@ const ChatHeader = () => {
     </div>
   );
 };
+
 export default ChatHeader;
