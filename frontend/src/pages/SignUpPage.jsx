@@ -99,7 +99,7 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Name"
                   className="input input-bordered w-full pl-10 focus:outline-none focus:ring-1 focus:ring-primary focus:ring-opacity-30"
                   value={formData.fullName}
                   onChange={(e) =>
@@ -120,7 +120,7 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="name@example.com"
                   className="input input-bordered w-full pl-10 focus:outline-none focus:ring-1 focus:ring-primary focus:ring-opacity-30"
                   value={formData.email}
                   onChange={(e) =>
